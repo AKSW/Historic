@@ -4,6 +4,7 @@ Need a Mongodb instance on port 27000.
 Tested with Node.Js v0.10.41.
 
 npm install
+
 ./init.sh
 
 Put all the compressed (bz2) files in the dump directory.
