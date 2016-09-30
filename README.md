@@ -1,2 +1,1 @@
-# Historic
-DBpedia Historique Extractor
+# ExtracteurHistoriqueDBpedia
