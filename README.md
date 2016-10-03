@@ -12,7 +12,7 @@ Like this file for example frwiki-20160305-pages-meta-history1.xml-p000000003p00
 
 Start the extractor with :
 
-node HistoriqueExtractor.node.js
+node HistoricExtractor.node.js
 
 
 
