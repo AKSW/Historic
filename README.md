@@ -1,4 +1,4 @@
-# ExtracteurHistoriqueDBpedia
+# DBpedia Historic Extractor
 
 Need a Mongodb instance on port 27000.
 Tested with Node.Js v0.10.41.
