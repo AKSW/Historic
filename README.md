@@ -15,7 +15,8 @@ Start the extractor with :
 node HistoricExtractor.node.js
 
 
-
+Remarque :
+If you want to activate the dbpedia wayback machine extraction, set true the boolean in the head of the RawPageSpliter file in the config section.
 
 
 Fabien Gandon, Raphael Boyer, Olivier Corby, Alexandre Monnin. Wikipedia editing history in DBpedia : extracting and publishing the encyclopedia editing activity as linked data. IEEE/WIC/ACM International Joint Conference on Web Intelligence (WI' 16), Oct 2016, Omaha, United States. <hal-01359575>
