@@ -9,7 +9,8 @@
     "string_decoder": "0.10.31",
     "mongodb": "2.1.16",
     "readable-stream": "1.0.31",
-    "stream": "0.0.2"
+    "stream": "0.0.2",
+    "time-calc": "0.7.4"
   },
   "author": "Raphael Boyer WIMMICS Team INRIA France",
   "license": "Apache-2.0"

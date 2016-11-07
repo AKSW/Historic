@@ -1,10 +1,8 @@
-/*
-Fabien Gandon, Raphael Boyer, Olivier Corby, Alexandre Monnin. Wikipedia editing history in DBpedia : extracting and publishing the encyclopedia editing activity as linked data. IEEE/WIC/ACM International Joint Conference on Web Intelligence (WI' 16), Oct 2016, Omaha, United States. <hal-01359575>
-https://hal.inria.fr/hal-01359575
 
-Fabien Gandon, Raphael Boyer, Olivier Corby, Alexandre Monnin. Materializing the editing history of Wikipedia as linked data in DBpedia. ISWC 2016 - 15th International Semantic Web Conference, Oct 2016, Kobe, Japan. <http://iswc2016.semanticweb.org/>. <hal-01359583>
-https://hal.inria.fr/hal-01359583
-*/
+///  CONFIG  ///
+var config_generateWaybackTriple = false;
+///  CONFIG  ///
+
 
 var Readable = require('stream').Readable;
 var util = require('util');
@@ -516,6 +514,8 @@ function compileData(data){
     rdf += "\t dc:created \""+data.parsedData.startDate+"\"^^xsd:dateTime ;\n";
     rdf += "\t dc:modified \""+data.parsedData.endDate+"\"^^xsd:dateTime ;\n";
     rdf += "\t dbfr:uniqueContributorNb "+data.parsedData.nbUniqueContributor+" ;\n";
+    if(config_generateWaybackTriple)
+        rdf += "\t dbfr:wayBack <http://data.wu.ac.at/wayback/dbpedia/"+data.parsedData.titleOfWiki+"/revision/id/"+data.parsedData["post"][ 0 ].revisionId+"> ;\n";
     for( var index in data.parsedData.revisionsPerYear ){
         rdf +=  "\t dbfr:revPerYear [ dc:date \""+index+"\"^^xsd:gYear ; rdf:value \""+data.parsedData.revisionsPerYear[ index ]+"\"^^xsd:integer ] ;\n";
     }
@@ -558,6 +558,8 @@ function compileData(data){
     for(var i=data.parsedData["post"].length-2; i>=0; i--){
         rdf += "<https://fr.wikipedia.org/w/index.php?title="+data.parsedData.titleOfWiki+"&oldid="+data.parsedData["post"][ i ].revisionId+">\n";
         rdf += "\t a prov:Revision ;\n";
+        if(config_generateWaybackTriple)
+            rdf += "\t dbfr:wayBack <http://data.wu.ac.at/wayback/dbpedia/"+data.parsedData.titleOfWiki+"/revision/id/"+data.parsedData["post"][ i ].revisionId+"> ;\n";
         rdf += "\t dc:created \""+data.parsedData.revisionsDate[ i ]+"\"^^xsd:dateTime ;\n";
         rdf += "\t dbfr:size \""+data.parsedData["post"][ i ]["size"]+"\"^^xsd:integer ;\n";
 
