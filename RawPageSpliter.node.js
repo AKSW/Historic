@@ -1,8 +1,10 @@
+/*
+Fabien Gandon, Raphael Boyer, Olivier Corby, Alexandre Monnin. Wikipedia editing history in DBpedia : extracting and publishing the encyclopedia editing activity as linked data. IEEE/WIC/ACM International Joint Conference on Web Intelligence (WI' 16), Oct 2016, Omaha, United States. <hal-01359575>
+https://hal.inria.fr/hal-01359575
 
-///  CONFIG  ///
-var config_generateWaybackTriple = false;
-///  CONFIG  ///
-
+Fabien Gandon, Raphael Boyer, Olivier Corby, Alexandre Monnin. Materializing the editing history of Wikipedia as linked data in DBpedia. ISWC 2016 - 15th International Semantic Web Conference, Oct 2016, Kobe, Japan. <http://iswc2016.semanticweb.org/>. <hal-01359583>
+https://hal.inria.fr/hal-01359583
+*/
 
 var Readable = require('stream').Readable;
 var util = require('util');
@@ -15,6 +17,9 @@ var MongoClient = require('mongodb').MongoClient
 var out  = "./rdfRelease/";
 var addFile = "";
 var firstPrintPrefix = true;
+// specifies whether also the wikipage text is included
+var containsText = false;
+var countryCode = "de";
 
 
 function RawPageSpliter(dbMongo){
@@ -22,7 +27,7 @@ function RawPageSpliter(dbMongo){
 	this._buffer = "";
     this._bufferForExtract = "";
     this.nextData = new Array();
-	this._decoder = new StringDecoder('utf8');
+    this._decoder = new StringDecoder('utf8');
     this.db = dbMongo;
 
     this.arrayPage = new Object();
@@ -54,12 +59,13 @@ RawPageSpliter.prototype.setIndexRule = function(modulo, size, nameF){
 }
 
 RawPageSpliter.prototype.push = function(data){
-    this.nextData.unshift(""+data);
+    this.nextData.unshift("" + data);
 }
 
 
 RawPageSpliter.prototype.stop = function(){
     var self = this;
+    console.log("Page id: " +  this.pageId);
     this.arrayPage[this.pageId].page = undefined;
     this.run = false;
     this.isRunning = false;
@@ -68,30 +74,76 @@ RawPageSpliter.prototype.stop = function(){
 RawPageSpliter.prototype.start = function(){
     this.isRunning = true;
 
+//    console.log("Data length: " + this.nextData.length);
+
     while(this.nextData.length > 0){
         this._buffer += this.nextData.pop();
 
-        do{
-            var endText = this._buffer.indexOf("</text>");
-            if(endText == -1)
-                break;
-            var textPos = this._buffer.indexOf("<text");
-            if(textPos == -1){
-                this._bufferForExtract += this._buffer;
-                this._buffer = "";
-                break;
-            }
-            var size = endText - (textPos + "<text xml:space=\"preserve\">".length);
-            var sizeStr = "<size>"+size+"</size>";
+	if (containsText) {
+		do{
+	       	    var endText = this._buffer.indexOf("</text>");
+		    if(endText == -1) {
+		        break;
+		    }
 
-            this._bufferForExtract += this._buffer.substring(0, textPos) + sizeStr;
-            this._buffer = this._buffer.substring(endText+"</text>".length);
-            
-        }while(true);
+		    var textPos = this._buffer.indexOf("<text");
+		    if(textPos == -1){
+		        this._bufferForExtract += this._buffer;
+		        this._buffer = "";
+		        break;
+		    }
+
+		    var	size = endText - (textPos + "<text xml:space=\"preserve\">".length);
+		    var sizeStr = "<size>"+size+"</size>";
+
+		    this._bufferForExtract += this._buffer.substring(0, textPos) + sizeStr;
+		    this._buffer = this._buffer.substring(endText+"</text>".length);	    
+		    
+		} while(true);
+	} else {
+		do {
+			var endRevisionPos = this._buffer.indexOf("<sha1>");
+			if (-1 == endRevisionPos) {
+				break;
+			}
+
+			var startRevisionPos = this._buffer.indexOf("<revision>");
+			if (-1 == startRevisionPos) {
+				this._bufferForExtract += this._buffer;
+				this._buffer = "";
+				break;
+			}
+
+			if (endRevisionPos < startRevisionPos) {
+				break; //one more round!
+			}
+
+			var sizeStr = "";
+			var startTextPos = this._buffer.indexOf("<text", startRevisionPos);
+			if (0 <= startTextPos && 0 <= endRevisionPos) {
+				var textTagString = this._buffer.substring(startTextPos, endRevisionPos);
+				var byteCountStartPos = textTagString.indexOf("bytes=\"");
+				var byteCountEndPos = textTagString.indexOf("\"", byteCountStartPos + "bytes=\"".length);
+			
+				var size = textTagString.substring(byteCountStartPos + "bytes=\"".length, byteCountEndPos);
+				if (isNaN(size)) {
+					throw "Could not find size: " + this._buffer;
+				}
+//				console.log("Size: '" + size + "'");
+				sizeStr = "<size>" + size + "</size>";
+			}
+
+			this._bufferForExtract += this._buffer.substring(0, endRevisionPos) + sizeStr;
+	//		console.log("Extract: '" + this._bufferForExtract + "'\n\n\n\n");
+			// set for next round
+			this._buffer = this._buffer.substring(endRevisionPos + "/>".length);
+		} while (true);
+	}
 
     }
 
     this.extract();
+
 
 }
 
@@ -158,89 +210,10 @@ RawPageSpliter.prototype.extract = function(){
     }while( !(this.revisionPos == -1 && this.pagePos == -1) );
 
     var self = this;
-    if(this.isRunning)
+    // if still running --> start again!
+    if (this.isRunning)
         setTimeout(function(){self.start();}, 100);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function extractPage(page, revisions){
     var data = {"page":page, "revisions":revisions};
@@ -262,8 +235,11 @@ function extractPage(page, revisions){
 
 function dataFormater(data){
     data.page = XmlParser(data.page);
-    for(var i=0; i<data.revisions.length; i++)
+
+    for(var i=0; i<data.revisions.length; i++) {
         data.revisions[i] = XmlParser(data.revisions[i]);
+    }
+
     data.parsedData = new Object();
     return data;
 }
@@ -272,7 +248,7 @@ function pageHeadParser(data){
     if(data.page.root){
         data.page.root.children.forEach(function(elem){
             if(elem.name == "title"){
-                data.parsedData.uri = "http://fr.dbpedia.org" + '/resource/' + elem.content.replace(/ /g, "_");
+                data.parsedData.uri = "http://" + countryCode + ".dbpedia.org" + '/resource/' + elem.content.replace(/ /g, "_");
                 data.parsedData.titleOfWiki = elem.content.replace(/ /g, "_");
             }else if(elem.name == "id"){
                 data.parsedData.id = elem.content;
@@ -481,16 +457,10 @@ function ToRdf_Concat(){
 }
 
 
-
-
-
-
-
-
 function compileData(data){
 
 
-    var uri = "http://fr.wikipedia.org/wiki/"+data.parsedData.titleOfWiki;
+    var uri = "http://" + countryCode + ".wikipedia.org/wiki/"+data.parsedData.titleOfWiki;
 
     var rdf = "";
     if(firstPrintPrefix){
@@ -509,13 +479,11 @@ function compileData(data){
 
     rdf += "<"+uri+">\n";
     rdf += "\t a prov:Revision ;\n";
-    rdf += "\t dc:subject <http://fr.dbpedia.org/resource/" + data.parsedData.titleOfWiki + "> ;\n";
+    rdf += "\t dc:subject <http://" + countryCode + ".dbpedia.org/resource/" + data.parsedData.titleOfWiki + "> ;\n";
     rdf += "\t swp:isVersion \""+data.parsedData.countRevision+"\"^^xsd:integer ;\n";
     rdf += "\t dc:created \""+data.parsedData.startDate+"\"^^xsd:dateTime ;\n";
     rdf += "\t dc:modified \""+data.parsedData.endDate+"\"^^xsd:dateTime ;\n";
     rdf += "\t dbfr:uniqueContributorNb "+data.parsedData.nbUniqueContributor+" ;\n";
-    if(config_generateWaybackTriple)
-        rdf += "\t dbfr:wayBack <http://data.wu.ac.at/wayback/dbpedia/"+data.parsedData.titleOfWiki+"/revision/id/"+data.parsedData["post"][ 0 ].revisionId+"> ;\n";
     for( var index in data.parsedData.revisionsPerYear ){
         rdf +=  "\t dbfr:revPerYear [ dc:date \""+index+"\"^^xsd:gYear ; rdf:value \""+data.parsedData.revisionsPerYear[ index ]+"\"^^xsd:integer ] ;\n";
     }
@@ -543,7 +511,7 @@ function compileData(data){
         if(data.parsedData["post"][ data.parsedData["post"].length-1 ].comment != undefined)
             rdf += "\t sioc:note \""+cleanNote( data.parsedData["post"][ data.parsedData["post"].length-1 ].comment )+"\"^^xsd:string ;\n";
         if(data.parsedData["post"].length-2 > 0)
-            rdf += "\t prov:wasRevisionOf <https://fr.wikipedia.org/w/index.php?title="+data.parsedData.titleOfWiki+"&oldid="+data.parsedData["post"][ data.parsedData["post"].length-2 ].revisionId+"> ;\n";
+            rdf += "\t prov:wasRevisionOf <https://" + countryCode + ".wikipedia.org/w/index.php?title="+data.parsedData.titleOfWiki+"&oldid="+data.parsedData["post"][ data.parsedData["post"].length-2 ].revisionId+"> ;\n";
 
         if(data.parsedData["post"][ data.parsedData["post"].length-1  ].contributor != undefined)
             if( isBot(data.parsedData["post"][ data.parsedData["post"].length-1 ].contributor, data.parsedData["post"][ data.parsedData["post"].length-1 ].comment) )
@@ -556,10 +524,8 @@ function compileData(data){
         rdf += "\n";
     }
     for(var i=data.parsedData["post"].length-2; i>=0; i--){
-        rdf += "<https://fr.wikipedia.org/w/index.php?title="+data.parsedData.titleOfWiki+"&oldid="+data.parsedData["post"][ i ].revisionId+">\n";
+        rdf += "<https://" + countryCode + ".wikipedia.org/w/index.php?title="+data.parsedData.titleOfWiki+"&oldid="+data.parsedData["post"][ i ].revisionId+">\n";
         rdf += "\t a prov:Revision ;\n";
-        if(config_generateWaybackTriple)
-            rdf += "\t dbfr:wayBack <http://data.wu.ac.at/wayback/dbpedia/"+data.parsedData.titleOfWiki+"/revision/id/"+data.parsedData["post"][ i ].revisionId+"> ;\n";
         rdf += "\t dc:created \""+data.parsedData.revisionsDate[ i ]+"\"^^xsd:dateTime ;\n";
         rdf += "\t dbfr:size \""+data.parsedData["post"][ i ]["size"]+"\"^^xsd:integer ;\n";
 
@@ -596,7 +562,7 @@ function compileData(data){
         }
             
         if( i - 1 >=0 )
-            rdf += "\t prov:wasRevisionOf <https://fr.wikipedia.org/w/index.php?title="+data.parsedData.titleOfWiki+"&oldid="+data.parsedData["post"][ i-1 ].revisionId+"> .\n";
+            rdf += "\t prov:wasRevisionOf <https://" + countryCode + ".wikipedia.org/w/index.php?title="+data.parsedData.titleOfWiki+"&oldid="+data.parsedData["post"][ i-1 ].revisionId+"> .\n";
         rdf += "\n";
     }
 
@@ -605,3 +571,4 @@ function compileData(data){
 }
 
 module.exports = RawPageSpliter;
+

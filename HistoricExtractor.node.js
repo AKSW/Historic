@@ -15,7 +15,7 @@ var Readable = require('stream').Readable;
 var spawn = require('child_process').spawn;
 
 var RawPageSpliter = require('./RawPageSpliter.node.js');
-var url = 'mongodb://localhost:27000/dbExtractorHisto';
+var url = 'mongodb://localhost:27017/dbExtractorHisto';
 
 
 var main = null;
@@ -70,13 +70,20 @@ MasterNode.prototype.readNextFile = function(){
 
 	
 	this.fileName = this.fileArray[this.fileIndex];
+
+	console.log("Filename: " + this.fileName);
 	
 	var collection = this.db.collection('fileSplit');
 
+	console.log("Collection: " + collection);
+
 	function fileCheck(err, docs){
-		if(docs.length != 0){
+
+		if(docs.length != 0 && self.fileIndex + 1 < self.fileArray.lengt){
 			self.fileIndex++;
 			self.fileName = self.fileArray[self.fileIndex];
+			
+			console.log("New filename: " + self.fileName);
 			collection.find({"name": self.fileName}).toArray(fileCheck);
 
 		}else{
@@ -92,7 +99,13 @@ MasterNode.prototype.readNextFile = function(){
 			self.splitFile();
 		}
 	}
-	collection.find({"name": self.fileName}).toArray(fileCheck);
+
+	console.log("Before find");
+	var findResult = collection.find({"name": self.fileName})
+	console.log("findResult: " + findResult);
+
+	findResult.toArray(fileCheck);
+	//collection.find({"name": self.fileName})
 
 }
 
@@ -165,6 +178,8 @@ var arrayFiles = fs.readdirSync("./dump");
 MongoClient.connect(url, function(err, db){
 	if(err)
 		console.log(err);
+	else
+		console.log("Was able to connect to MongoDB");
 
 	main = new MasterNode("./dump", arrayFiles, db);
 	main.start();
